@@ -123,12 +123,24 @@ def main():
         '    <span class="guide" aria-hidden="true"></span>\n'
         f'    <ul class="titles">{"".join(title_buttons)}</ul>\n'
         "  </div>\n"
-        f'  <div class="stage">{"".join(stages)}</div>\n'
+        f'  <div class="stage">{"".join(stages)}\n'
+        '    <button type="button" class="next" hidden aria-label="下一首">\n'
+        '      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>\n'
+        "    </button>\n"
+        "  </div>\n"
         "</div>\n"
         """<script>
-const buttons = document.querySelectorAll(".titles button");
-const articles = document.querySelectorAll(".stage article");
+const buttons = Array.from(document.querySelectorAll(".titles button"));
+const articles = Array.from(document.querySelectorAll(".stage article"));
 const guide = document.querySelector(".guide");
+const nextButton = document.querySelector(".next");
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let pull = 0;
+let lockUntil = 0;
+
+function currentIndex() {
+  return buttons.findIndex((button) => button.getAttribute("aria-current") === "true");
+}
 function placeGuide() {
   const current = document.querySelector(".titles button[aria-current='true']");
   const index = document.querySelector(".index");
@@ -137,8 +149,19 @@ function placeGuide() {
   guide.style.height = current.offsetHeight + "px";
   guide.style.transform = "translateY(" + top + "px)";
 }
+function syncNext() {
+  const index = currentIndex();
+  const upcoming = buttons[index + 1];
+  if (!nextButton) return;
+  if (!upcoming) {
+    nextButton.hidden = true;
+    return;
+  }
+  nextButton.hidden = false;
+  nextButton.setAttribute("aria-label", "下一首 " + upcoming.textContent);
+}
 function selectPoem(slug, updateHash) {
-  const known = Array.from(articles).some((article) => article.dataset.slug === slug);
+  const known = articles.some((article) => article.dataset.slug === slug);
   if (!known) slug = articles[0] ? articles[0].dataset.slug : "";
   buttons.forEach((button) => {
     if (button.dataset.slug === slug) button.setAttribute("aria-current", "true");
@@ -152,16 +175,63 @@ function selectPoem(slug, updateHash) {
     }
     article.classList.toggle("is-selected", chosen);
   });
-  placeGuide();
+  syncNext();
+  requestAnimationFrame(placeGuide);
   if (updateHash && slug) history.replaceState(null, "", "#" + encodeURIComponent(slug));
 }
+function atTop() {
+  return window.scrollY <= 8;
+}
+function atBottom() {
+  return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 6;
+}
+function watchScroll() {
+  document.documentElement.classList.toggle("is-scrolled", !atTop());
+  requestAnimationFrame(placeGuide);
+}
+function goNext() {
+  if (Date.now() < lockUntil) return;
+  const upcoming = buttons[currentIndex() + 1];
+  if (!upcoming) return;
+  lockUntil = Date.now() + 700;
+  pull = 0;
+  nextButton.classList.remove("is-pulling");
+  selectPoem(upcoming.dataset.slug, true);
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+}
 buttons.forEach((button) => {
-  button.addEventListener("click", () => selectPoem(button.dataset.slug, true));
+  button.addEventListener("click", () => {
+    if (document.documentElement.classList.contains("is-scrolled") && button.getAttribute("aria-current") !== "true") return;
+    selectPoem(button.dataset.slug, true);
+  });
 });
+nextButton.addEventListener("click", goNext);
+document.querySelector(".titles").addEventListener("transitionend", placeGuide);
+window.addEventListener("scroll", watchScroll, { passive: true });
+window.addEventListener("resize", placeGuide);
+window.addEventListener("wheel", (event) => {
+  if (reduceMotion || nextButton.hidden || !atBottom() || event.deltaY <= 0) {
+    pull = 0;
+    nextButton.classList.remove("is-pulling");
+    return;
+  }
+  pull += event.deltaY;
+  nextButton.classList.add("is-pulling");
+  if (pull > 420) goNext();
+}, { passive: true });
+let touchStart = 0;
+window.addEventListener("touchstart", (event) => {
+  touchStart = event.touches[0].clientY;
+}, { passive: true });
+window.addEventListener("touchmove", (event) => {
+  if (reduceMotion || nextButton.hidden || !atBottom()) return;
+  const lifted = touchStart - event.touches[0].clientY;
+  if (lifted > 180) goNext();
+}, { passive: true });
 const initial = decodeURIComponent(location.hash.replace(/^#/, ""));
 if (initial) selectPoem(initial, false);
-else placeGuide();
-window.addEventListener("resize", placeGuide);
+else syncNext();
+watchScroll();
 </script>"""
     )
     (SITE).mkdir()
