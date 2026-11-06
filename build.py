@@ -109,23 +109,34 @@ def main():
         )
         stages.append(
             f'<article id="poem-{index}" data-slug="{slug}" class="{selected.strip()}">\n'
+            f'  <p class="when"><time datetime="{poem["date"]}">{display_date(poem["date"])}</time></p>\n'
             f'  <h2 class="poem-title">{title}</h2>\n'
-            f'  <time datetime="{poem["date"]}">{display_date(poem["date"])}</time>\n'
             f'  <div class="poem">{poem["html"]}</div>\n'
             "</article>"
         )
     home = (
         "<header>\n"
-        f'  <h1 class="site-title"><a href="/">{TITLE}</a></h1>\n'
-        "  <p class=\"site-note\">HustHeCheng</p>\n"
+        f'  <h1 class="site-title"><a href="/">{html.escape(TITLE)}</a></h1>\n'
         "</header>\n"
         '<div class="reader">\n'
-        f'  <ul class="titles">{"".join(title_buttons)}</ul>\n'
+        '  <div class="index">\n'
+        '    <span class="guide" aria-hidden="true"></span>\n'
+        f'    <ul class="titles">{"".join(title_buttons)}</ul>\n'
+        "  </div>\n"
         f'  <div class="stage">{"".join(stages)}</div>\n'
         "</div>\n"
         """<script>
 const buttons = document.querySelectorAll(".titles button");
 const articles = document.querySelectorAll(".stage article");
+const guide = document.querySelector(".guide");
+function placeGuide() {
+  const current = document.querySelector(".titles button[aria-current='true']");
+  const index = document.querySelector(".index");
+  if (!guide || !current || !index) return;
+  const top = current.getBoundingClientRect().top - index.getBoundingClientRect().top;
+  guide.style.height = current.offsetHeight + "px";
+  guide.style.transform = "translateY(" + top + "px)";
+}
 function selectPoem(slug, updateHash) {
   const known = Array.from(articles).some((article) => article.dataset.slug === slug);
   if (!known) slug = articles[0] ? articles[0].dataset.slug : "";
@@ -134,8 +145,14 @@ function selectPoem(slug, updateHash) {
     else button.removeAttribute("aria-current");
   });
   articles.forEach((article) => {
-    article.classList.toggle("is-selected", article.dataset.slug === slug);
+    const chosen = article.dataset.slug === slug;
+    if (chosen) {
+      article.classList.remove("is-selected");
+      void article.offsetWidth;
+    }
+    article.classList.toggle("is-selected", chosen);
   });
+  placeGuide();
   if (updateHash && slug) history.replaceState(null, "", "#" + encodeURIComponent(slug));
 }
 buttons.forEach((button) => {
@@ -143,6 +160,8 @@ buttons.forEach((button) => {
 });
 const initial = decodeURIComponent(location.hash.replace(/^#/, ""));
 if (initial) selectPoem(initial, false);
+else placeGuide();
+window.addEventListener("resize", placeGuide);
 </script>"""
     )
     (SITE).mkdir()
@@ -153,8 +172,8 @@ if (initial) selectPoem(initial, false);
         folder.mkdir(parents=True)
         body = (
             '<article class="poem-page">\n'
+            f'  <p class="when"><time datetime="{poem["date"]}">{display_date(poem["date"])}</time></p>\n'
             f'  <h1 class="poem-title">{html.escape(poem["title"])}</h1>\n'
-            f'  <time datetime="{poem["date"]}">{display_date(poem["date"])}</time>\n'
             f'  <div class="poem">{poem["html"]}</div>\n'
             "</article>"
         )
