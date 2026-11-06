@@ -97,12 +97,19 @@ def main():
         })
     poems.sort(key=lambda poem: sort_key(poem["date"]), reverse=True)
 
-    articles = []
-    for poem in poems:
-        href = "/poems/" + poem["slug"] + "/"
-        articles.append(
-            "<article>\n"
-            f'  <h2 class="poem-title"><a href="{html.escape(href)}">{html.escape(poem["title"])}</a></h2>\n'
+    title_buttons = []
+    stages = []
+    for index, poem in enumerate(poems):
+        slug = html.escape(poem["slug"], quote=True)
+        title = html.escape(poem["title"])
+        current = ' aria-current="true"' if index == 0 else ""
+        selected = " is-selected" if index == 0 else ""
+        title_buttons.append(
+            f'<li><button type="button" data-slug="{slug}"{current}>{title}</button></li>'
+        )
+        stages.append(
+            f'<article id="poem-{index}" data-slug="{slug}" class="{selected.strip()}">\n'
+            f'  <h2 class="poem-title">{title}</h2>\n'
             f'  <time datetime="{poem["date"]}">{display_date(poem["date"])}</time>\n'
             f'  <div class="poem">{poem["html"]}</div>\n'
             "</article>"
@@ -111,11 +118,32 @@ def main():
         "<header>\n"
         f'  <h1 class="site-title"><a href="/">{TITLE}</a></h1>\n'
         "  <p class=\"site-note\">HustHeCheng</p>\n"
-        "</header>\n\n"
-        + "\n".join(articles)
-        + "\n\n<p class=\"how\">记下一首：在 <code>_poems/</code> 里新建 Markdown。"
-        "写上 title 和 date，一行一句，空行分节。"
-        "date 可以写成 <code>2026-10</code>，也可以写成 <code>2026-11-06</code>。</p>"
+        "</header>\n"
+        '<div class="reader">\n'
+        f'  <ul class="titles">{"".join(title_buttons)}</ul>\n'
+        f'  <div class="stage">{"".join(stages)}</div>\n'
+        "</div>\n"
+        """<script>
+const buttons = document.querySelectorAll(".titles button");
+const articles = document.querySelectorAll(".stage article");
+function selectPoem(slug, updateHash) {
+  const known = Array.from(articles).some((article) => article.dataset.slug === slug);
+  if (!known) slug = articles[0] ? articles[0].dataset.slug : "";
+  buttons.forEach((button) => {
+    if (button.dataset.slug === slug) button.setAttribute("aria-current", "true");
+    else button.removeAttribute("aria-current");
+  });
+  articles.forEach((article) => {
+    article.classList.toggle("is-selected", article.dataset.slug === slug);
+  });
+  if (updateHash && slug) history.replaceState(null, "", "#" + encodeURIComponent(slug));
+}
+buttons.forEach((button) => {
+  button.addEventListener("click", () => selectPoem(button.dataset.slug, true));
+});
+const initial = decodeURIComponent(location.hash.replace(/^#/, ""));
+if (initial) selectPoem(initial, false);
+</script>"""
     )
     (SITE).mkdir()
     (SITE / "index.html").write_text(page(TITLE, home, home=True), encoding="utf-8")

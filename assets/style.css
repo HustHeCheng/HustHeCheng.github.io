@@ -50,16 +50,68 @@ a { color: inherit; }
   letter-spacing: 0.04em;
 }
 
-article {
-  margin-top: 3rem;
-  padding-top: 2.5rem;
-  border-top: 1px solid var(--line);
+.reader {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 2.75rem;
+  margin-top: 2.75rem;
+  align-items: start;
 }
 
-.poem-page article {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.titles button {
+  appearance: none;
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.titles button[aria-current="true"] {
+  color: var(--ink);
+}
+
+.stage article {
+  display: none;
+  margin: 0;
+}
+
+.stage article.is-selected {
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .reader {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .titles {
+    flex-direction: row;
+    flex-wrap: wrap;
+    column-gap: 1.1rem;
+    position: static;
+  }
+
+  .titles button {
+    width: auto;
+  }
 }
 
 .poem-title {
