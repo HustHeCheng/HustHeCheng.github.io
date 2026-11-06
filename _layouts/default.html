@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body>
+  <main>
+    {% unless page.url == "/" %}
+      <p class="mark"><a href="{{ "/" | relative_url }}">{{ site.title }}</a></p>
+    {% endunless %}
+    {{ content }}
+  </main>
+</body>
+</html>

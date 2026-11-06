@@ -1,0 +1,17 @@
+title: 现代诗
+description: 记下的现代诗
+lang: zh-CN
+markdown: kramdown
+kramdown:
+  hard_wrap: true
+collections:
+  poems:
+    output: true
+    sort_by: date
+permalink: /:collection/:name/
+defaults:
+  - scope:
+      path: ""
+      type: poems
+    values:
+      layout: poem

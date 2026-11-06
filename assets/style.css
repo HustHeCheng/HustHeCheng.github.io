@@ -1,0 +1,98 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f1e7;
+  --ink: #221c16;
+  --muted: #7a7066;
+  --line: #e3d8c8;
+  --link: #6d4c3d;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Iowan Old Style", Palatino, "Songti SC", "Noto Serif SC", serif;
+}
+
+main {
+  width: min(38rem, calc(100% - 2.5rem));
+  margin: 0 auto;
+  padding: 4.5rem 0 6rem;
+}
+
+a { color: inherit; }
+
+.site-title {
+  margin: 0;
+  font-size: 2.4rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+.site-title a,
+.mark a { text-decoration: none; }
+
+.mark {
+  margin: 0 0 2.5rem;
+  letter-spacing: 0.16em;
+}
+
+.mark a:hover,
+.site-note a:hover,
+.poem-title a:hover { color: var(--link); }
+
+.site-note {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+article {
+  margin-top: 3rem;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.poem-page article {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.poem-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.poem-title a { text-decoration: none; }
+
+time {
+  display: block;
+  margin: 0.45rem 0 1.15rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.12em;
+}
+
+.poem p {
+  margin: 0 0 1.15rem;
+  font-size: 1.12rem;
+  line-height: 2.05;
+}
+
+.how {
+  margin-top: 4rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.86em;
+}
