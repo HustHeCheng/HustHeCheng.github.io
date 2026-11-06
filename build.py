@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 POEMS = ROOT / "_poems"
 SITE = ROOT / "_site"
-TITLE = "现代诗"
+TITLE = "我来时一声便是歌"
 DATE_RE = re.compile(r"^(\d{4})-(\d{2})(?:-(\d{2}))?$")
 
 
