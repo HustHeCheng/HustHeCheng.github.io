@@ -97,43 +97,68 @@ def main():
         })
     poems.sort(key=lambda poem: sort_key(poem["date"]), reverse=True)
 
-    title_buttons = []
+    groups = []
     stages = []
     for index, poem in enumerate(poems):
         slug = html.escape(poem["slug"], quote=True)
         title = html.escape(poem["title"])
+        year = poem["date"][:4]
         current = ' aria-current="true"' if index == 0 else ""
-        selected = " is-selected" if index == 0 else ""
-        title_buttons.append(
-            f'<li><button type="button" data-slug="{slug}"{current}>{title}</button></li>'
+        selected = ' class="is-selected"' if index == 0 else ""
+        if not groups or groups[-1][0] != year:
+            groups.append((year, []))
+        groups[-1][1].append(
+            f'<li><button type="button" data-slug="{slug}" data-year="{year}"{current}>{title}</button></li>'
         )
         stages.append(
-            f'<article id="poem-{index}" data-slug="{slug}" class="{selected.strip()}">\n'
+            f'<article id="poem-{index}" data-slug="{slug}"{selected}>\n'
             f'  <p class="when"><time datetime="{poem["date"]}">{display_date(poem["date"])}</time></p>\n'
             f'  <h2 class="poem-title">{title}</h2>\n'
             f'  <div class="poem">{poem["html"]}</div>\n'
             "</article>"
         )
+    index_html = "".join(
+        f'<section class="year"><h3>{year}<span>{len(items)}</span></h3>'
+        f'<ul class="titles">{"".join(items)}</ul></section>'
+        for year, items in groups
+    )
+    span = f"{groups[-1][0]} — {groups[0][0]}" if groups else ""
+    first = html.escape(poems[0]["title"]) if poems else ""
     home = (
         "<header>\n"
         f'  <h1 class="site-title"><a href="/">{html.escape(TITLE)}</a></h1>\n'
+        f'  <p class="tally">{len(poems)} 首 · {span}</p>\n'
         "</header>\n"
         '<div class="reader">\n'
-        '  <div class="index">\n'
-        '    <span class="guide" aria-hidden="true"></span>\n'
-        f'    <ul class="titles">{"".join(title_buttons)}</ul>\n'
-        "  </div>\n"
-        f'  <div class="stage">{"".join(stages)}\n'
-        '    <button type="button" class="next" hidden aria-label="下一首">\n'
-        '      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>\n'
+        '  <nav class="index" aria-label="诗目">\n'
+        '    <button type="button" class="toggle" aria-expanded="false">\n'
+        f'      <span class="toggle-label">目录</span><span class="toggle-current">{first}</span>\n'
+        '      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>\n'
         "    </button>\n"
+        '    <div class="list">\n'
+        '      <span class="guide" aria-hidden="true"></span>\n'
+        f"      {index_html}\n"
+        "    </div>\n"
+        "  </nav>\n"
+        f'  <div class="stage">{"".join(stages)}\n'
+        '    <nav class="turn">\n'
+        '      <button type="button" class="prev" hidden><span>上一首</span><b></b></button>\n'
+        '      <button type="button" class="next" hidden><span>下一首</span><b></b>\n'
+        '        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>\n'
+        "      </button>\n"
+        "    </nav>\n"
         "  </div>\n"
         "</div>\n"
         """<script>
 const buttons = Array.from(document.querySelectorAll(".titles button"));
 const articles = Array.from(document.querySelectorAll(".stage article"));
+const nav = document.querySelector(".index");
+const list = document.querySelector(".index .list");
 const guide = document.querySelector(".guide");
+const toggle = document.querySelector(".toggle");
+const toggleCurrent = document.querySelector(".toggle-current");
 const nextButton = document.querySelector(".next");
+const prevButton = document.querySelector(".prev");
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let pull = 0;
 let lockUntil = 0;
@@ -142,25 +167,46 @@ function currentIndex() {
   return buttons.findIndex((button) => button.getAttribute("aria-current") === "true");
 }
 function placeGuide() {
-  const current = document.querySelector(".titles button[aria-current='true']");
-  const index = document.querySelector(".index");
-  if (!guide || !current || !index) return;
-  const top = current.getBoundingClientRect().top - index.getBoundingClientRect().top;
+  const current = buttons[currentIndex()];
+  if (!guide || !current) return;
+  const top = current.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
   guide.style.height = current.offsetHeight + "px";
   guide.style.transform = "translateY(" + top + "px)";
 }
-function syncNext() {
-  const index = currentIndex();
-  const upcoming = buttons[index + 1];
-  if (!nextButton) return;
-  if (!upcoming) {
-    nextButton.hidden = true;
+function revealCurrent(smooth) {
+  const current = buttons[currentIndex()];
+  if (!current || list.clientHeight === 0) return;
+  const box = list.getBoundingClientRect();
+  const item = current.getBoundingClientRect();
+  const margin = 48;
+  let delta = 0;
+  if (item.top < box.top + margin) delta = item.top - box.top - margin;
+  else if (item.bottom > box.bottom - margin) delta = item.bottom - box.bottom + margin;
+  if (delta) list.scrollBy({ top: delta, behavior: smooth && !reduceMotion ? "smooth" : "auto" });
+}
+function fillTurn(button, target) {
+  if (!target) {
+    button.hidden = true;
     return;
   }
-  nextButton.hidden = false;
-  nextButton.setAttribute("aria-label", "下一首 " + upcoming.textContent);
+  button.hidden = false;
+  button.querySelector("b").textContent = target.textContent;
+  button.dataset.slug = target.dataset.slug;
 }
-function selectPoem(slug, updateHash) {
+function syncTurn() {
+  const index = currentIndex();
+  fillTurn(prevButton, buttons[index - 1]);
+  fillTurn(nextButton, buttons[index + 1]);
+}
+function setOpen(open) {
+  nav.classList.toggle("is-open", open);
+  toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  const current = buttons[currentIndex()];
+  if (open && current) {
+    list.scrollTop = current.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - 72;
+  }
+}
+function selectPoem(slug, updateHash, smooth = true) {
   const known = articles.some((article) => article.dataset.slug === slug);
   if (!known) slug = articles[0] ? articles[0].dataset.slug : "";
   buttons.forEach((button) => {
@@ -175,63 +221,58 @@ function selectPoem(slug, updateHash) {
     }
     article.classList.toggle("is-selected", chosen);
   });
-  syncNext();
-  requestAnimationFrame(placeGuide);
+  const current = buttons[currentIndex()];
+  if (current) toggleCurrent.textContent = current.textContent;
+  syncTurn();
+  requestAnimationFrame(() => { placeGuide(); revealCurrent(smooth); });
   if (updateHash && slug) history.replaceState(null, "", "#" + encodeURIComponent(slug));
-}
-function atTop() {
-  return window.scrollY <= 8;
 }
 function atBottom() {
   return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 6;
 }
-function watchScroll() {
-  document.documentElement.classList.toggle("is-scrolled", !atTop());
-  requestAnimationFrame(placeGuide);
-}
-function goNext() {
-  if (Date.now() < lockUntil) return;
-  const upcoming = buttons[currentIndex() + 1];
-  if (!upcoming) return;
+function go(slug) {
+  if (!slug || Date.now() < lockUntil) return;
   lockUntil = Date.now() + 700;
   pull = 0;
   nextButton.classList.remove("is-pulling");
-  selectPoem(upcoming.dataset.slug, true);
+  selectPoem(slug, true);
   window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
 }
 buttons.forEach((button) => {
   button.addEventListener("click", () => {
-    if (document.documentElement.classList.contains("is-scrolled") && button.getAttribute("aria-current") !== "true") return;
+    setOpen(false);
+    if (button.getAttribute("aria-current") === "true") return;
     selectPoem(button.dataset.slug, true);
+    window.scrollTo({ top: 0, behavior: "auto" });
   });
 });
-nextButton.addEventListener("click", goNext);
-document.querySelector(".titles").addEventListener("transitionend", placeGuide);
-window.addEventListener("scroll", watchScroll, { passive: true });
+toggle.addEventListener("click", () => setOpen(!nav.classList.contains("is-open")));
+nextButton.addEventListener("click", () => go(nextButton.dataset.slug));
+prevButton.addEventListener("click", () => go(prevButton.dataset.slug));
+document.addEventListener("keydown", (event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key === "Escape") setOpen(false);
+  if (event.key === "ArrowRight" && !nextButton.hidden) go(nextButton.dataset.slug);
+  if (event.key === "ArrowLeft" && !prevButton.hidden) go(prevButton.dataset.slug);
+});
+window.addEventListener("scroll", () => {
+  document.documentElement.classList.toggle("is-scrolled", window.scrollY > 8);
+}, { passive: true });
 window.addEventListener("resize", placeGuide);
 window.addEventListener("wheel", (event) => {
-  if (reduceMotion || nextButton.hidden || !atBottom() || event.deltaY <= 0) {
+  if (reduceMotion || nextButton.hidden || nav.classList.contains("is-open") || list.contains(event.target) || !atBottom() || event.deltaY <= 0) {
     pull = 0;
     nextButton.classList.remove("is-pulling");
     return;
   }
   pull += event.deltaY;
   nextButton.classList.add("is-pulling");
-  if (pull > 420) goNext();
-}, { passive: true });
-let touchStart = 0;
-window.addEventListener("touchstart", (event) => {
-  touchStart = event.touches[0].clientY;
-}, { passive: true });
-window.addEventListener("touchmove", (event) => {
-  if (reduceMotion || nextButton.hidden || !atBottom()) return;
-  const lifted = touchStart - event.touches[0].clientY;
-  if (lifted > 180) goNext();
+  if (pull > 420) go(nextButton.dataset.slug);
 }, { passive: true });
 const initial = decodeURIComponent(location.hash.replace(/^#/, ""));
-if (initial) selectPoem(initial, false);
-else syncNext();
-watchScroll();
+if (initial) selectPoem(initial, false, false);
+else syncTurn();
+requestAnimationFrame(() => { placeGuide(); revealCurrent(false); });
 </script>"""
     )
     (SITE).mkdir()
